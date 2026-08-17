@@ -1,4 +1,4 @@
-import type { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const CDN_HEADERS = {
   "User-Agent": "okhttp/4.12.0",
