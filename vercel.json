@@ -1,6 +1,5 @@
 {
   "routes": [
-    { "src": "/api/proxy", "dest": "/api/proxy" },
-    { "src": "/(.*)", "dest": "/" }
+    { "src": "/api/proxy", "dest": "/api/proxy" }
   ]
 }
