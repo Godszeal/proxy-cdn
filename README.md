@@ -2,7 +2,8 @@
 
 A small Next.js API that proxies arbitrary URLs and returns them with hardened CDN-style response headers suitable for use behind Vercel (or any CDN). Use this as a lightweight "CDN proxy" for fetching remote assets while applying consistent caching and security headers.
 
-- Exposes: `GET /api/proxy?url=<target-url>`
+- Exposes: `GET` and `HEAD /api/proxy?url=<target-url>` plus CORS preflight via `OPTIONS`.
+- Preserves byte-range requests and response metadata for browser video playback.
 - Intended for deployment as a standalone Next.js app on Vercel.
 
 Table of contents
@@ -57,21 +58,21 @@ Table of contents
 
 ## Configuration
 
-This project may support — and should be configured with — the following environment variables (add them in Vercel or your .env file). Adjust names to match your implementation.
+The following environment variables are supported. Add them in Vercel or in a local `.env` file.
 
-- ALLOWED_HOSTS (optional) — comma-separated list of hostnames allowed to be proxied. If empty, proxy may allow all hosts (not recommended).
-- ALLOWED_ORIGINS (optional) — comma-separated list of allowed origins for CORS.
-- CACHE_CONTROL_DEFAULT (optional) — default `Cache-Control` header value for proxied responses.
-- RATE_LIMIT (optional) — simple rate-limit value (requests per minute) to protect the endpoint.
-- PROXY_TIMEOUT_MS (optional) — request timeout for upstream fetches (milliseconds).
-- LOG_LEVEL (optional) — info, warn, error, debug.
+- `ALLOWED_HOSTS` (optional) — comma-separated hostnames allowed to be proxied. When unset, all HTTP(S) hosts are accepted; set this in production to reduce SSRF exposure.
+- `UPSTREAM_USER_AGENT` (optional) — explicit User-Agent to send upstream. By default, the incoming client User-Agent is forwarded.
+- `UPSTREAM_REFERER` (optional) — explicit Referer for upstreams that require one.
+- `UPSTREAM_ORIGIN` (optional) — explicit Origin for upstreams that require one.
 
-Important: Do not place secrets in query strings. If you need to proxy requests that require credentials, use secure server-side configuration and never expose credentials to the client.
+The handler forwards `Range`, conditional request headers, and `Accept`, while it deliberately does not forge `Host`, `Origin`, or `Referer`. This avoids sending a host-specific spoofed request that can cause an upstream CDN to reject the request. CORS is handled at the proxy boundary.
+
+Important: Do not place secrets in query strings. If you need to proxy resources that require credentials, use secure server-side configuration and never expose credentials to the client.
 
 ## API
 
 ### GET /api/proxy
-Fetches the provided URL, applies security and CDN-style headers, and returns the response.
+Fetches the provided URL, preserves streaming and byte-range behavior, applies CORS and CDN cache headers, and returns the response. `HEAD` is also supported for media metadata, and `OPTIONS` responds to CORS preflight requests.
 
 Query parameters:
 - url (required) — full URL of the resource to fetch (URL-encoded). Example: `https://example.com/image.png`
@@ -79,18 +80,13 @@ Query parameters:
 Optional query parameters may be implemented depending on the repository (e.g., `cache`, `as`, `s-maxage`); check code for specifics.
 
 Responses:
-- 200 — proxied content returned with headers applied.
-- 400 — missing or invalid `url` parameter.
-- 403 — host not allowed (if ALLOWED_HOSTS is enabled).
-- 504 / 502 — upstream timeout or fetch error.
+- `200`, `206`, or another successful upstream status — proxied content returned with content type and range metadata.
+- `400` — missing, malformed, or unsupported `url` parameter.
+- `403` — host not allowed when `ALLOWED_HOSTS` is enabled.
+- `502` — the proxy could not connect to the upstream.
+- The upstream status is returned for an upstream HTTP error, together with `X-Proxy-Upstream-Status` and a JSON diagnostic body.
 
-Headers applied (examples)
-- Cache-Control: `public, max-age=...`
-- Surrogate-Control / Surrogate-Key: for CDN caching (if implemented)
-- Content-Security-Policy: tightened policy (if implemented)
-- X-Content-Type-Options: `nosniff`
-- X-Frame-Options: `DENY`
-- Referrer-Policy: `no-referrer`
+The proxy sets `Access-Control-Allow-Origin: *`, exposes the range and entity headers needed by media clients, and uses `Cache-Control: public, max-age=60, s-maxage=86400, stale-while-revalidate=60` for successful responses. Error responses are not cached.
 
 Make sure to review the code to see the exact headers set and adjust to your needs.
 
@@ -128,10 +124,10 @@ This proxy is intended to make remote resources behave more like CDN-backed asse
 - If resources change upstream, use cache-busting strategies (unique URLs, query string versioning).
 
 ## Troubleshooting
-- 400 Bad Request: check that `url` is present and properly URL-encoded.
-- 403 Forbidden: check ALLOWED_HOSTS and host validation logic.
-- 504 Gateway Timeout: increase PROXY_TIMEOUT_MS or check upstream server health.
-- Unexpected content-type: verify upstream response headers are preserved or normalized based on your needs.
+
+A signed media URL is a temporary credential, not a permanent file URL. If the target URL contains a `t=<unix-timestamp>` parameter and that timestamp is in the past, the proxy reports `signedUrlExpired: true` in its JSON error response. Generate a fresh media URL from the source service; changing the proxy cannot renew the signature.
+
+For an upstream `401`, `403`, `410`, `429`, or `426`, first test the target URL directly and check the upstream status shown in the proxy response. If the upstream requires a specific header, set `UPSTREAM_REFERER`, `UPSTREAM_ORIGIN`, or `UPSTREAM_USER_AGENT` in Vercel rather than hard-coding it in the route. For range playback, ensure the client sends `Range` and that the upstream supports byte ranges.
 
 ## Contributing
 Contributions, issues, and feature requests are welcome. For small changes:
