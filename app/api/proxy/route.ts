@@ -7,16 +7,52 @@ const corsHeaders = {
   "Access-Control-Expose-Headers": "Content-Length, Content-Range, Accept-Ranges",
 }
 
-const CDN_PROXY_HEADERS = {
-  "User-Agent": "okhttp/4.12.0",
-  Referer: "https://fmoviesunblocked.net/",
-  Origin: "https://fmoviesunblocked.net",
-  "X-Forwarded-For": "1.1.1.1",
-  "CF-Connecting-IP": "1.1.1.1",
-  "X-Real-IP": "1.1.1.1",
+const IP_POOL = [
+  "1.1.1.1",
+  "1.0.0.1",
+  "8.8.8.8",
+  "8.8.4.4",
+  "9.9.9.9",
+  "149.112.112.9",
+  "208.67.222.222",
+  "208.67.220.220",
+  "64.6.64.6",
+  "64.6.65.6",
+]
+
+let ipIndex = 0
+
+function nextIp() {
+  const ip = IP_POOL[ipIndex % IP_POOL.length]
+  ipIndex += 1
+  return ip
+}
+
+function buildProxyHeaders(rangeHeader: string | null) {
+  const ip = nextIp()
+  return {
+    "User-Agent": "okhttp/4.12.0",
+    Referer: "https://fmoviesunblocked.net/",
+    Origin: "https://fmoviesunblocked.net",
+    "X-Forwarded-For": ip,
+    "CF-Connecting-IP": ip,
+    "X-Real-IP": ip,
+    ...(rangeHeader ? { Range: rangeHeader } : {}),
+  }
 }
 
 const HOST_URL = `https://${process.env.MOVIEBOX_API_HOST || "h5.aoneroom.com"}`
+
+function getProxyUrl(): string | undefined {
+  const value = process.env.UPSTREAM_PROXY
+  if (!value) return undefined
+  try {
+    new URL(value)
+    return value
+  } catch {
+    return undefined
+  }
+}
 
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders })
@@ -36,12 +72,14 @@ export async function GET(request: NextRequest) {
     }
 
     const decodedUrl = decodeURIComponent(targetUrl)
+    const proxyUrl = getProxyUrl()
 
     if (testMode) {
       try {
         const testResponse = await fetch(decodedUrl, {
           method: "HEAD",
-          headers: CDN_PROXY_HEADERS,
+          headers: buildProxyHeaders(null),
+          ...(proxyUrl ? { proxy: proxyUrl } : {}),
         })
 
         return NextResponse.json(
@@ -69,15 +107,13 @@ export async function GET(request: NextRequest) {
     const rangeHeader = request.headers.get("range")
 
     let response: Response
-    let fetchHeaders = {
-      ...CDN_PROXY_HEADERS,
-      ...(rangeHeader ? { Range: rangeHeader } : {}),
-    }
+    let fetchHeaders = buildProxyHeaders(rangeHeader)
 
     try {
       response = await fetch(decodedUrl, {
         headers: fetchHeaders,
         redirect: "follow",
+        ...(proxyUrl ? { proxy: proxyUrl } : {}),
       })
 
       if (response.status === 403) {
@@ -85,15 +121,16 @@ export async function GET(request: NextRequest) {
           "User-Agent": "okhttp/4.12.0",
           Referer: HOST_URL,
           Origin: HOST_URL,
-          "X-Forwarded-For": "1.1.1.1",
-          "CF-Connecting-IP": "1.1.1.1",
-          "X-Real-IP": "1.1.1.1",
+          "X-Forwarded-For": nextIp(),
+          "CF-Connecting-IP": nextIp(),
+          "X-Real-IP": nextIp(),
           ...(rangeHeader ? { Range: rangeHeader } : {}),
         }
 
         response = await fetch(decodedUrl, {
           headers: fetchHeaders,
           redirect: "follow",
+          ...(proxyUrl ? { proxy: proxyUrl } : {}),
         })
       }
     } catch (err) {
@@ -101,15 +138,16 @@ export async function GET(request: NextRequest) {
         "User-Agent": "okhttp/4.12.0",
         Referer: HOST_URL,
         Origin: HOST_URL,
-        "X-Forwarded-For": "1.1.1.1",
-        "CF-Connecting-IP": "1.1.1.1",
-        "X-Real-IP": "1.1.1.1",
+        "X-Forwarded-For": nextIp(),
+        "CF-Connecting-IP": nextIp(),
+        "X-Real-IP": nextIp(),
         ...(rangeHeader ? { Range: rangeHeader } : {}),
       }
 
       response = await fetch(decodedUrl, {
         headers: fetchHeaders,
         redirect: "follow",
+        ...(proxyUrl ? { proxy: proxyUrl } : {}),
       })
     }
 

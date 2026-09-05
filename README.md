@@ -130,6 +130,7 @@ The following environment variables are supported. Add them in your hosting plat
 - `UPSTREAM_REFERER` (optional) — explicit Referer for upstreams that require one. Defaults to `https://fmoviesunblocked.net/`.
 - `UPSTREAM_ORIGIN` (optional) — explicit Origin for upstreams that require one. Defaults to `https://fmoviesunblocked.net`.
 - `MOVIEBOX_API_HOST` (optional) — host for fallback referer/origin. Defaults to `h5.aoneroom.com`.
+- `UPSTREAM_PROXY` (optional) — upstream HTTP/HTTPS proxy URL, e.g. `http://proxy-service:8080`. Use this when the target CDN blocks requests by source IP. When set, all upstream requests are routed through this proxy.
 
 ## API
 
@@ -192,6 +193,8 @@ This proxy is intended to make remote resources behave more like CDN-backed asse
 A signed media URL is a temporary credential, not a permanent file URL. If the target URL contains a `t=<unix-timestamp>` parameter and that timestamp is in the past, the proxy reports `signedUrlExpired: true` in its JSON error response. Generate a fresh media URL from the source service; changing the proxy cannot renew the signature.
 
 For an upstream `401`, `403`, `410`, `429`, or `426`, first test the target URL directly and check the upstream status shown in the proxy response. The proxy automatically retries on 429/502/503/504 with exponential backoff. If the upstream requires a specific header, set `UPSTREAM_REFERER`, `UPSTREAM_ORIGIN`, or `UPSTREAM_USER_AGENT` in your hosting environment rather than hard-coding it in the route. For range playback, ensure the client sends `Range` and that the upstream supports byte ranges.
+
+If the upstream CDN blocks requests by source IP, set the `UPSTREAM_PROXY` environment variable to an HTTP/HTTPS proxy URL. All upstream requests will then be routed through that proxy, which changes the apparent source IP. Example: `UPSTREAM_PROXY=http://proxy-service:8080`. You can use residential proxy providers or your own proxy server.
 
 ## Contributing
 Contributions, issues, and feature requests are welcome. For small changes:
