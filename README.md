@@ -48,6 +48,13 @@ A lightweight Next.js API that proxies arbitrary URLs with CDN-style response he
 
 This project uses `output: "standalone"` in `next.config.js`, which creates a portable build with all dependencies bundled. You can deploy it on any Node.js hosting platform.
 
+### Deploy on Vercel
+1. Push this folder to a GitHub repository.
+2. Import the repository into Vercel (https://vercel.com/new).
+3. Vercel will auto-detect Next.js and run `npm install && npm run build`.
+4. No custom start command is needed; Vercel handles serverless functions automatically.
+5. Deploy. Vercel will provide a URL like `https://zst-cdn-proxy.vercel.app`.
+
 #### Deploy on VPS / Dedicated Server
 1. Push this folder to your server or clone the repository.
 2. Install dependencies: `npm install`
