@@ -12,7 +12,7 @@ export default function Home() {
     }
   }, []);
 
-  const exampleUrl = `${baseUrl}/api/proxy?url=${encodeURIComponent("https://bcdnxw.hakunaymatata.com/bt/389b4c34fb6caa951b142aa49c5787a3.mp4?sign=42f9ec167c6e89ad12f37b467f2ce2f9&t=1786912161")}`;
+  const exampleUrl = `${baseUrl}/api/proxy?url=${encodeURIComponent("https://bcdnxw.hakunaymatata.com/bt/389b4c34fb6caa951b142aa49c5787a3.mp4?sign=ee607dcd140d3edafcbccc497e8e1c86&t=1788591714")}`;
 
   return (
     <div style={{
