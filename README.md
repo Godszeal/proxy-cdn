@@ -76,11 +76,11 @@ If you need to override any setting manually:
 3. Build the app: `npm run build`
 4. Start the production server:
    ```bash
-   node .next/standalone/server.js
+   npm run start
    ```
 5. (Optional) Use PM2 or systemd to keep it running:
    ```bash
-   pm2 start .next/standalone/server.js --name "cdn-proxy"
+   pm2 start npm --name "cdn-proxy" -- run start
    ```
 
 #### Deploy on Railway
@@ -90,12 +90,12 @@ If you need to override any setting manually:
 3. Railway will auto-detect Node.js.
 4. In **Settings** → **Deploy**, set:
    - **Build Command**: `npm run build`
-   - **Start Command**: `node .next/standalone/server.js`
+   - **Start Command**: `npm run start`
 5. In **Settings** → **Variables**, add any environment variables you need.
 6. Deploy. Railway will provide a URL like `https://your-app.up.railway.app`.
 
 **Important notes for Railway:**
-- Railway uses the `package.json` `start` script by default. Override it with the Start Command above to use the standalone server.
+- Railway uses the `package.json` `start` script by default.
 - If you get a 502, check the **Deploy Logs** to see if the build completed and the server started.
 - Railway free tier may sleep after inactivity; the first request may take a few seconds to wake up.
 
@@ -106,7 +106,7 @@ If you need to override any setting manually:
 3. In **Settings** → **Build & Deploy**, set:
    - **Environment**: `Node`
    - **Build Command**: `npm run build`
-   - **Start Command**: `node .next/standalone/server.js`
+   - **Start Command**: `npm run start`
 4. In **Settings** → **Environment**, add any environment variables you need.
 5. Deploy. Render will provide a URL like `https://your-app.onrender.com`.
 
@@ -114,7 +114,7 @@ If you need to override any setting manually:
 - Render free tier services **sleep after 15 minutes of inactivity**. When a request hits a sleeping instance, Render returns `502` or `503` while it wakes up. This is normal for free tier.
 - To prevent sleep, upgrade to a paid plan, or use a keep-alive ping service.
 - If you see `502` with empty body, check **Logs** in the Render dashboard. Common fixes:
-  - Ensure **Start Command** is exactly `node .next/standalone/server.js`
+  - Ensure **Start Command** is exactly `npm run start`
   - Ensure **Build Command** is exactly `npm run build`
   - Ensure **Environment** is set to `Node`
   - Ensure **Node Version** is `18.x` or `20.x` in the dashboard
@@ -142,7 +142,7 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["npm", "run", "start"]
 ```
 
 ## Configuration

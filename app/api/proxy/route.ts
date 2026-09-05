@@ -18,6 +18,17 @@ const CDN_PROXY_HEADERS = {
 
 const HOST_URL = `https://${process.env.MOVIEBOX_API_HOST || "h5.aoneroom.com"}`
 
+function getProxyUrl(): string | undefined {
+  const value = process.env.UPSTREAM_PROXY
+  if (!value) return undefined
+  try {
+    new URL(value)
+    return value
+  } catch {
+    return undefined
+  }
+}
+
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders })
 }
@@ -36,12 +47,14 @@ export async function GET(request: NextRequest) {
     }
 
     const decodedUrl = decodeURIComponent(targetUrl)
+    const proxyUrl = getProxyUrl()
 
     if (testMode) {
       try {
         const testResponse = await fetch(decodedUrl, {
           method: "HEAD",
           headers: CDN_PROXY_HEADERS,
+          ...(proxyUrl ? { proxy: proxyUrl } : {}),
         })
 
         return NextResponse.json(
@@ -78,6 +91,7 @@ export async function GET(request: NextRequest) {
       response = await fetch(decodedUrl, {
         headers: fetchHeaders,
         redirect: "follow",
+        ...(proxyUrl ? { proxy: proxyUrl } : {}),
       })
 
       if (response.status === 403) {
@@ -94,6 +108,7 @@ export async function GET(request: NextRequest) {
         response = await fetch(decodedUrl, {
           headers: fetchHeaders,
           redirect: "follow",
+          ...(proxyUrl ? { proxy: proxyUrl } : {}),
         })
       }
     } catch (err) {
@@ -110,6 +125,7 @@ export async function GET(request: NextRequest) {
       response = await fetch(decodedUrl, {
         headers: fetchHeaders,
         redirect: "follow",
+        ...(proxyUrl ? { proxy: proxyUrl } : {}),
       })
     }
 
