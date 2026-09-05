@@ -1,9 +1,17 @@
 "use client";
 
 import Script from "next/script";
+import { useEffect, useState } from "react";
 
 export default function Home() {
-  const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://zst-proxy-cdn.vercel.app";
+  const [baseUrl, setBaseUrl] = useState("https://zst-proxy-cdn.vercel.app");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setBaseUrl(window.location.origin);
+    }
+  }, []);
+
   const exampleUrl = `${baseUrl}/api/proxy?url=${encodeURIComponent("https://bcdnxw.hakunaymatata.com/bt/389b4c34fb6caa951b142aa49c5787a3.mp4?sign=42f9ec167c6e89ad12f37b467f2ce2f9&t=1786912161")}`;
 
   return (
