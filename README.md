@@ -84,18 +84,42 @@ If you need to override any setting manually:
    ```
 
 #### Deploy on Railway
+
 1. Push this folder to a GitHub repository.
 2. Create a new Railway project and connect your GitHub repo.
-3. Railway will auto-detect the Node.js app and run `npm install && npm run build`.
-4. Set the start command to: `node .next/standalone/server.js`
-5. Deploy. Railway will provide a URL like `https://your-app.up.railway.app`.
+3. Railway will auto-detect Node.js.
+4. In **Settings** → **Deploy**, set:
+   - **Build Command**: `npm run build`
+   - **Start Command**: `node .next/standalone/server.js`
+5. In **Settings** → **Variables**, add any environment variables you need.
+6. Deploy. Railway will provide a URL like `https://your-app.up.railway.app`.
+
+**Important notes for Railway:**
+- Railway uses the `package.json` `start` script by default. Override it with the Start Command above to use the standalone server.
+- If you get a 502, check the **Deploy Logs** to see if the build completed and the server started.
+- Railway free tier may sleep after inactivity; the first request may take a few seconds to wake up.
 
 #### Deploy on Render
+
 1. Push this folder to a GitHub repository.
-2. Create a new Render Web Service and connect your GitHub repo.
-3. Set the build command: `npm run build`
-4. Set the start command: `node .next/standalone/server.js`
+2. Create a new **Web Service** on Render and connect your GitHub repo.
+3. In **Settings** → **Build & Deploy**, set:
+   - **Environment**: `Node`
+   - **Build Command**: `npm run build`
+   - **Start Command**: `node .next/standalone/server.js`
+4. In **Settings** → **Environment**, add any environment variables you need.
 5. Deploy. Render will provide a URL like `https://your-app.onrender.com`.
+
+**Important notes for Render:**
+- Render free tier services **sleep after 15 minutes of inactivity**. When a request hits a sleeping instance, Render returns `502` or `503` while it wakes up. This is normal for free tier.
+- To prevent sleep, upgrade to a paid plan, or use a keep-alive ping service.
+- If you see `502` with empty body, check **Logs** in the Render dashboard. Common fixes:
+  - Ensure **Start Command** is exactly `node .next/standalone/server.js`
+  - Ensure **Build Command** is exactly `npm run build`
+  - Ensure **Environment** is set to `Node`
+  - Ensure **Node Version** is `18.x` or `20.x` in the dashboard
+- After deployment, test with: `https://your-app.onrender.com/api/proxy?url=https%3A%2F%2Fhttpbin.org%2Fget`
+- If the first request returns `502`, wait 10-30 seconds and retry. The service may be waking up.
 
 #### Deploy on Fly.io
 1. Install the Fly CLI and authenticate.
