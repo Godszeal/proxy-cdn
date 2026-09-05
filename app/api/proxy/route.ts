@@ -18,66 +18,12 @@ const CDN_PROXY_HEADERS = {
 
 const HOST_URL = `https://${process.env.MOVIEBOX_API_HOST || "h5.aoneroom.com"}`
 
-const RATE_LIMIT_WINDOW_MS = 60_000
-const RATE_LIMIT_MAX = 60
-const rateLimitStore = new Map<string, { count: number; reset: number }>()
-
-function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for")
-  if (forwarded) {
-    return forwarded.split(",")[0].trim()
-  }
-  const realIp = request.headers.get("x-real-ip")
-  if (realIp) {
-    return realIp.trim()
-  }
-  return request.ip || "unknown"
-}
-
-function checkRateLimit(clientIp: string): { allowed: boolean; retryAfterMs: number } {
-  const now = Date.now()
-  const entry = rateLimitStore.get(clientIp)
-
-  if (!entry || now > entry.reset) {
-    rateLimitStore.set(clientIp, { count: 1, reset: now + RATE_LIMIT_WINDOW_MS })
-    return { allowed: true, retryAfterMs: 0 }
-  }
-
-  entry.count += 1
-  if (entry.count > RATE_LIMIT_MAX) {
-    const retryAfterMs = entry.reset - now
-    return { allowed: false, retryAfterMs }
-  }
-
-  return { allowed: true, retryAfterMs: 0 }
-}
-
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders })
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const clientIp = getClientIp(request)
-    const rateLimit = checkRateLimit(clientIp)
-
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Too many requests",
-          creator: "God's Zeal",
-        },
-        {
-          status: 429,
-          headers: {
-            ...corsHeaders,
-            "Retry-After": String(Math.ceil(rateLimit.retryAfterMs / 1000)),
-          },
-        },
-      )
-    }
-
     const { searchParams } = new URL(request.url)
     const targetUrl = searchParams.get("url")
     const testMode = searchParams.get("test") === "true"
@@ -91,7 +37,6 @@ export async function GET(request: NextRequest) {
 
     const decodedUrl = decodeURIComponent(targetUrl)
 
-    // Test mode - just check if we can access the URL
     if (testMode) {
       try {
         const testResponse = await fetch(decodedUrl, {
@@ -121,7 +66,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get range header for video streaming
     const rangeHeader = request.headers.get("range")
 
     let response: Response
@@ -153,7 +97,6 @@ export async function GET(request: NextRequest) {
         })
       }
     } catch (err) {
-      // If primary fails completely, try fallback with HOST_URL referer
       fetchHeaders = {
         "User-Agent": "okhttp/4.12.0",
         Referer: HOST_URL,
@@ -213,4 +156,3 @@ export async function GET(request: NextRequest) {
     )
   }
 }
-
