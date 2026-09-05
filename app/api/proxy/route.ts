@@ -7,27 +7,13 @@ const corsHeaders = {
   "Access-Control-Expose-Headers": "Content-Length, Content-Range, Accept-Ranges",
 }
 
-function randomPublicIp() {
-  const octets = [
-    Math.floor(Math.random() * 223) + 1,
-    Math.floor(Math.random() * 256),
-    Math.floor(Math.random() * 256),
-    Math.floor(Math.random() * 256),
-  ]
-  return octets.join(".")
-}
-
-function buildProxyHeaders(rangeHeader: string | null) {
-  const ip = randomPublicIp()
-  return {
-    "User-Agent": "okhttp/4.12.0",
-    Referer: "https://fmoviesunblocked.net/",
-    Origin: "https://fmoviesunblocked.net",
-    "X-Forwarded-For": ip,
-    "CF-Connecting-IP": ip,
-    "X-Real-IP": ip,
-    ...(rangeHeader ? { Range: rangeHeader } : {}),
-  }
+const CDN_PROXY_HEADERS = {
+  "User-Agent": "okhttp/4.12.0",
+  Referer: "https://fmoviesunblocked.net/",
+  Origin: "https://fmoviesunblocked.net",
+  "X-Forwarded-For": "1.1.1.1",
+  "CF-Connecting-IP": "1.1.1.1",
+  "X-Real-IP": "1.1.1.1",
 }
 
 const HOST_URL = `https://${process.env.MOVIEBOX_API_HOST || "h5.aoneroom.com"}`
@@ -51,11 +37,12 @@ export async function GET(request: NextRequest) {
 
     const decodedUrl = decodeURIComponent(targetUrl)
 
+    // Test mode - just check if we can access the URL
     if (testMode) {
       try {
         const testResponse = await fetch(decodedUrl, {
           method: "HEAD",
-          headers: buildProxyHeaders(null),
+          headers: CDN_PROXY_HEADERS,
         })
 
         return NextResponse.json(
@@ -80,25 +67,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Get range header for video streaming
     const rangeHeader = request.headers.get("range")
 
     let response: Response
-    let fetchHeaders = buildProxyHeaders(rangeHeader)
+    let fetchHeaders = {
+      ...CDN_PROXY_HEADERS,
+      ...(rangeHeader ? { Range: rangeHeader } : {}),
+    }
 
     try {
+      console.log("[v0] Fetching with fmoviesunblocked.net referer")
       response = await fetch(decodedUrl, {
         headers: fetchHeaders,
         redirect: "follow",
       })
 
       if (response.status === 403) {
+        console.log("[v0] Got 403 with fmoviesunblocked, trying HOST_URL referer")
         fetchHeaders = {
           "User-Agent": "okhttp/4.12.0",
           Referer: HOST_URL,
           Origin: HOST_URL,
-          "X-Forwarded-For": randomPublicIp(),
-          "CF-Connecting-IP": randomPublicIp(),
-          "X-Real-IP": randomPublicIp(),
+          "X-Forwarded-For": "1.1.1.1",
+          "CF-Connecting-IP": "1.1.1.1",
+          "X-Real-IP": "1.1.1.1",
           ...(rangeHeader ? { Range: rangeHeader } : {}),
         }
 
@@ -108,13 +101,15 @@ export async function GET(request: NextRequest) {
         })
       }
     } catch (err) {
+      // If primary fails completely, try fallback with HOST_URL referer
+      console.log("[v0] Primary CDN fetch failed, trying fallback with HOST_URL referer")
       fetchHeaders = {
         "User-Agent": "okhttp/4.12.0",
         Referer: HOST_URL,
         Origin: HOST_URL,
-        "X-Forwarded-For": randomPublicIp(),
-        "CF-Connecting-IP": randomPublicIp(),
-        "X-Real-IP": randomPublicIp(),
+        "X-Forwarded-For": "1.1.1.1",
+        "CF-Connecting-IP": "1.1.1.1",
+        "X-Real-IP": "1.1.1.1",
         ...(rangeHeader ? { Range: rangeHeader } : {}),
       }
 
@@ -157,6 +152,7 @@ export async function GET(request: NextRequest) {
       headers: proxyHeaders,
     })
   } catch (error) {
+    console.error("[v0] Proxy error:", error)
     return NextResponse.json(
       {
         success: false,
